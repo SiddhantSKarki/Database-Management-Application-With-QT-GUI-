@@ -3,6 +3,8 @@ from PySide2 import QtGui, QtCore, QtWidgets
 import PySide2.QtWidgets
 import mysql.connector
 import sys
+import os
+import json
 
 class DBApplication(QtWidgets.QWidget):
 
@@ -41,14 +43,20 @@ class DBApplication(QtWidgets.QWidget):
         # FOR dropdown
         for table in self.tables:
             self.dropdown.addItem(table.upper())
-        print(self._table_func_map["CUSTOMERS"])
         
     def read_database(self):
+        config_dir = os.path.join("..", "config.json")
+        with open(config_dir, mode='+r',newline='\n') as file:
+            json_file = json.load(file)
+        user = json_file['mysql']['user']
+        pswd = json_file['mysql']['password']
+        host = json_file['mysql']['host']
+        database = json_file['mysql']['database']
         self.db = mysql.connector.connect(
-            user='root',
-            password='Clfa5ae692._',
-            database='bikestore',
-            host='localhost'
+            user=user,
+            password=pswd,
+            database=database,
+            host=host
         )
         self.cur = self.db.cursor()
 
@@ -334,7 +342,6 @@ class DBApplication(QtWidgets.QWidget):
         self.form_layout.addRow(self.state_label, self.field_state)
         self.form_layout.addRow(self.zip_code_label, self.field_zip_code)
 
-
     def stocks_form(self):
         self.form_title = QtWidgets.QLabel("Stocks Information")
 
@@ -352,9 +359,6 @@ class DBApplication(QtWidgets.QWidget):
         self.form_layout.addRow(self.store_id_label, self.field_store_id)
         self.form_layout.addRow(self.product_id_label, self.field_product_id)
         self.form_layout.addRow(self.stock_quantity_label, self.field_stock_quantity)
-
-
-
  
     def setup_data(self):
         self.db_table = QtWidgets.QTableWidget()
