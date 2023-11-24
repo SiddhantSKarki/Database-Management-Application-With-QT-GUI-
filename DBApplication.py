@@ -1,4 +1,3 @@
-import typing
 from PySide2 import QtGui, QtCore, QtWidgets
 import PySide2.QtWidgets
 import mysql.connector
@@ -12,11 +11,10 @@ class DBApplication(QtWidgets.QWidget):
         super().__init__()
         serifFont = QtGui.QFont("Times", 10, QtGui.QFont.Monospace)
         self.setFont(serifFont)
-        self.tables = ['customers', 'categories', 'order_items',
+        self.tables = ['customers', 'order_items',
                        'orders', 'products']
         self._table_func_map = {
             "CUSTOMERS" : self.customer_form,
-            "CATEGORIES" : self.categories_form,
             "ORDER_ITEMS": self.order_items_form,
             "ORDERS": self.orders_form,
             "PRODUCTS" : self.products_form,
@@ -34,9 +32,9 @@ class DBApplication(QtWidgets.QWidget):
         self.select_label = QtWidgets.QLabel("Select Database")
         self.dropdown = QtWidgets.QComboBox()
 
-        self.load_btn.clicked.connect(self.magic)
+        self.load_btn.clicked.connect(self.querySelectionLoad)
         self.read_database()
-
+        
         # FOR dropdown
         for table in self.tables:
             self.dropdown.addItem(table.upper())
@@ -78,57 +76,44 @@ class DBApplication(QtWidgets.QWidget):
         self.main_layout.addWidget(self.message_label, alignment=QtCore.Qt.AlignBottom)
 
 
-    def magic(self):
-        self.setup_data()
-        row_num = 0
-        column_headers = [column[0] for column in self.cur.description]
-        self.db_table.setColumnCount(len(column_headers))
-        self.db_table.setHorizontalHeaderLabels(column_headers)
-        for row in self.cur:
-            self.db_table.insertRow(row_num)
-            for col, col_data in enumerate(row):
-                item = QtWidgets.QTableWidgetItem(str(col_data))
-                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEditable)
-                self.db_table.setItem(row_num, col, item)
-            row_num += 1
-        self.message_label.setText(f"{row_num} records found")
-        self.form_select(self.dropdown.currentText())
-        self.sub_layout.addWidget(self.db_table, 0, 0)
-        self.db.close()
-
-    def clear_layout(self, layout: QtWidgets.QLayout):
-        while layout.count():
-            item = layout.takeAt(0)
-            if isinstance(item, QtWidgets.QLayout):
-                self.clear_layout(item)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
-
-    def form_select(self, table):
-        if self.form_layout:
-            self.clear_layout(self.form_layout)
-        self.form_layout = QtWidgets.QFormLayout()
-        self.sub_layout.addLayout(self.form_layout, 0, 1)
-        self.form_title_1 = QtWidgets.QLabel("Customers Search Options")
-        self.form_layout.addWidget(self.form_title_1)
-        self._table_func_map["CUSTOMERS"]()
-        self.form_title_2 = QtWidgets.QLabel("Orders Search Options")
-        self.form_layout.addWidget(self.form_title_2)
-        self._table_func_map["ORDERS"]()
-        self._table_func_map["ORDER_ITEMS"]()
-        self.form_title_3 = QtWidgets.QLabel("Products Search Options")
-        self.form_layout.addWidget(self.form_title_3)
-        self._table_func_map["PRODUCTS"]()
-        self.submit_button = QtWidgets.QPushButton("Submit")
-        self.form_layout.addRow(self.submit_button)
-        
+    def form_select(self, table): #TODO: Remove the table parameter if not necessary
+        if not self.form_layout:
+            self.form_layout = QtWidgets.QFormLayout()
+            self.sub_layout.addLayout(self.form_layout, 0, 1)
+            self.form_title_1 = QtWidgets.QLabel("Customers Search Options")
+            self.form_layout.addWidget(self.form_title_1)
+            self._table_func_map["CUSTOMERS"]()
+            self.form_title_2 = QtWidgets.QLabel("Orders Search Options")
+            self.form_layout.addWidget(self.form_title_2)
+            self._table_func_map["ORDERS"]()
+            self._table_func_map["ORDER_ITEMS"]()
+            self._table_func_map["PRODUCTS"]()
+            self.submit_button = QtWidgets.QPushButton("Submit")
+            self.submit_button.clicked.connect(self.querySelection)
+            self.form_layout.addRow(self.submit_button)
+            self._customers_query_dict = {
+                'first_name':self.field_first_name,
+                'last_name':self.field_last_name,
+                'state':self.field_state
+            }
+            self._orders_query_dict = {
+                'order_status':self.field_order_status,
+                'shipped_date':self.field_shipped_date,
+                'required_date':self.field_required_date
+            }
+            self._oitems_query_dict = {
+                'discount' : (self.min_dis, self.max_dis),
+                'quantity' : (self.min_quantity, self.max_quantity)
+            }
+            self._products_query_dict = {
+                'product_name': self.field_product_name,
+                'list_price' : (self.min_list_price, self.max_list_price)
+            }
 
     def customer_form(self):
         self.form_last_name = QtWidgets.QLabel("Last Name:")
         self.form_first_name = QtWidgets.QLabel("First Name: ")
         self.state_label = QtWidgets.QLabel("State:")
-        self.zip_code = QtWidgets.QLabel("Zip Code: ")
         self.field_first_name = QtWidgets.QLineEdit()
         self.field_last_name = QtWidgets.QLineEdit()
         self.field_state = QtWidgets.QLineEdit()
@@ -136,25 +121,10 @@ class DBApplication(QtWidgets.QWidget):
         self.field_first_name.setFixedHeight(30)
         self.field_last_name.setFixedHeight(30)
         self.field_state.setFixedHeight(30)
-        self.field_state.setFixedHeight(30)
 
         self.form_layout.addRow(self.form_first_name, self.field_first_name)
         self.form_layout.addRow(self.form_last_name, self.field_last_name)
         self.form_layout.addRow(self.state_label, self.field_state)
-    
-    def categories_form(self):
-
-        self.form_category = QtWidgets.QLabel("Category:")
-        self.form_cat_id = QtWidgets.QLabel("Category ID: ")
-        self.field_category = QtWidgets.QLineEdit()
-        self.field_cat_id = QtWidgets.QLineEdit()
-        
-
-        self.field_category.setFixedHeight(30)
-        self.field_cat_id.setFixedHeight(30)
-        
-        self.form_layout.addRow(self.form_category, self.field_category)
-        self.form_layout.addRow(self.form_cat_id , self.field_cat_id)
 
     def order_items_form(self):
         self.quantity = QtWidgets.QLabel("Quantity:")
@@ -205,19 +175,15 @@ class DBApplication(QtWidgets.QWidget):
         self.form_layout.addRow(self.required_date_label, self.field_required_date)
         self.form_layout.addRow(self.shipped_date_label, self.field_shipped_date)
 
-
     def products_form(self):
-        self.form_title = QtWidgets.QLabel("Products Search Options")
-
+        self.form_title_3 = QtWidgets.QLabel("Products Search Options")
+        self.show_product_label = QtWidgets.QLabel("Show Columns")
+        self.show_pbox = QtWidgets.QCheckBox()
         self.product_name_label = QtWidgets.QLabel("Product Name:")
-        self.brand_name_label = QtWidgets.QLabel("Brand Name:")
-        self.category_name_label = QtWidgets.QLabel("Category Name:")
         self.model_year_label = QtWidgets.QLabel("Model Year:")
         self.list_price_label = QtWidgets.QLabel("List Price:")
 
         self.field_product_name = QtWidgets.QLineEdit()
-        self.field_brand_name = QtWidgets.QLineEdit()
-        self.field_category_name = QtWidgets.QLineEdit()
         self.field_model_year = QtWidgets.QLineEdit()
 
         self.min_list_price = QtWidgets.QLineEdit()
@@ -230,24 +196,135 @@ class DBApplication(QtWidgets.QWidget):
         self.min_list_price.setFixedWidth(40)
         self.max_list_price.setFixedWidth(40)
 
-        for field in [self.field_product_name, self.field_brand_name,
-                        self.field_category_name, self.field_model_year]:
+        for field in [self.field_product_name, self.field_model_year]:
             field.setFixedHeight(30)
-
+        self.form_layout.addWidget(self.form_title_3)
+        self.form_layout.addRow(self.show_product_label, self.show_pbox)
         self.form_layout.addRow(self.product_name_label, self.field_product_name)
-        self.form_layout.addRow(self.brand_name_label, self.field_brand_name)
-        self.form_layout.addRow(self.category_name_label, self.field_category_name)
         self.form_layout.addRow(self.model_year_label, self.field_model_year)
         self.form_layout.addRow(self.list_price_label, self.list_price_max_min)
  
+    def magic(self):
+        self.setup_data()
+        row_num = 0
+        self.column_headers = [column[0] for column in self.cur.description]
+        self.db_table.setColumnCount(len(self.column_headers))
+        self.db_table.setHorizontalHeaderLabels(self.column_headers)
+        for row in self.cur:
+            self.db_table.insertRow(row_num)
+            for col, col_data in enumerate(row):
+                item = QtWidgets.QTableWidgetItem(str(col_data))
+                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEditable)
+                self.db_table.setItem(row_num, col, item)
+            row_num += 1
+        self.message_label.setText(f"{row_num} records found")
+        self.sub_layout.addWidget(self.db_table, 0, 0)
+        self.form_select(self.db_table)
+        self.db.close()
+
+    def check_dict_contents(self, form_dict, form_name):
+        isEmpty = True
+        cols = []
+        for key,value in form_dict.items():
+            if isinstance(value, QtWidgets.QLineEdit):
+                if value.text() != '':
+                    isEmpty = False
+                    cols.append(f"{form_name}.{key}")
+            else:
+                if value[0].text() != '' or value[1].text() != '':
+                    isEmpty = False
+                    cols.append(f"{form_name}.{key}")
+        return (isEmpty,cols)
+    
+    def where_mod(self, form_dict, form_name):
+        where_component = ""
+        for key, value in form_dict.items():
+                if isinstance(value, QtWidgets.QLineEdit):
+                    if value.text() != '':
+                        if self.num > 0:
+                            where_component += " AND "
+                        else:
+                            where_component += " WHERE "
+                        if key == 'order_status':
+                            where_component += f"{form_name}.{key} = {value.text()}"
+                        elif key == 'required_date' or key == 'shipped_date':
+                            where_component += f"{form_name}.{key} = '{value.text()}'"
+                        elif key == 'first_name' or key == 'last_name' or key == "product_name" or key == 'state':
+                            where_component += f"{form_name}.{key} LIKE '{value.text()}%'"
+                        self.num+=1
+                else:
+                    if value[0].text() != '' or value[1].text() != '':
+                        if self.num > 0:
+                            where_component += " AND "
+                        else:
+                            where_component += " WHERE "
+                        if key == 'quantity' or  key == 'discount' or key == 'list_price':
+                            if value[0].text() != '' and value[1].text() != '':
+                                where_component += f"{form_name}.{key} BETWEEN {value[0].text()} AND {value[1].text()}" 
+                            elif value[0].text() != '':
+                                where_component += f"ABS({form_name}.{key} - {value[0].text()}) < 0.00001 "
+                            else:
+                                where_component += f"{form_name}.{key} BETWEEN 0 AND {value[1].text()}"
+                        self.num+=1
+        return where_component
+                        
+
+    def querySelection(self):
+        self.num = 0
+        customers_form_entry = self.check_dict_contents(self._customers_query_dict, "CUSTOMERS")
+        orders_form_entry = self.check_dict_contents(self._orders_query_dict, "ORDERS")
+        join_component = ""
+        where_component = ""
+        column_comp = ", ".join([f"CUSTOMERS.{column}" for column in ['customer_id', 'first_name', 'last_name','phone','email','street','city','state','zipcode']])
+
+
+        where_component += self.where_mod(self._customers_query_dict, "CUSTOMERS")
+        if not orders_form_entry[0]:
+            join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = ORDERS.customer_id "
+            where_component += self.where_mod(self._orders_query_dict, "ORDERS")
+            column_comp += "," + ', '.join(orders_form_entry[1])
+
+        oitems_form_entry = self.check_dict_contents(self._oitems_query_dict, "ORDER_ITEMS")
+        if not oitems_form_entry[0]:
+            if orders_form_entry[0]:
+                join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = ORDERS.customer_id "
+            join_component += " INNER JOIN bikestore.ORDER_ITEMS ON ORDER_ITEMS.order_id = ORDERS.order_id "
+            where_component += self.where_mod(self._oitems_query_dict, "ORDER_ITEMS")
+            column_comp += "," + ', '.join(oitems_form_entry[1])
+
+        products_form_entry = self.check_dict_contents(self._products_query_dict, "PRODUCTS")
+        if not products_form_entry[0]:
+            if oitems_form_entry[0]:
+                join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = ORDERS.customer_id " + " INNER JOIN bikestore.ORDER_ITEMS ON ORDER_ITEMS.order_id = ORDERS.order_id "
+            join_component += " INNER JOIN bikestore.products ON bikestore.order_items.product_id = bikestore.products.product_id"
+            where_component += self.where_mod(self._products_query_dict, "PRODUCTS")
+            column_comp += "," + ', '.join(products_form_entry[1])
+        query_text = f"SELECT {column_comp} FROM bikestore.CUSTOMERS "
+        query_text = query_text + join_component + where_component
+        self.query = query_text
+        print(self.query)
+        self.magic()
+
+    def querySelectionLoad(self):
+        self.query = f"SELECT * FROM bikestore.{self.dropdown.currentText()}"
+        self.magic()
+
     def setup_data(self):
         self.db_table = QtWidgets.QTableWidget()
         try:
             self.read_database()
-            query = f"SELECT * FROM bikestore.{self.dropdown.currentText()}"
-            self.cur.execute(query)
+            self.cur.execute(self.query)
         except Exception as e:
             print(e.__cause__)
+
+    def clear_layout(self, layout: QtWidgets.QLayout):
+        while layout.count():
+            item = layout.takeAt(0)
+            if isinstance(item, QtWidgets.QLayout):
+                self.clear_layout(item)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
 
 if __name__== '__main__':
     application = QtWidgets.QApplication(sys.argv)
