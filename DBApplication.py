@@ -1,4 +1,5 @@
 from PySide2 import QtGui, QtCore, QtWidgets
+from PySide2.QtGui import QFontDatabase
 import PySide2.QtWidgets
 import mysql.connector
 import sys
@@ -9,8 +10,9 @@ class DBApplication(QtWidgets.QWidget):
 
     def __init__(self):
         super().__init__()
-        serifFont = QtGui.QFont("Times", 10, QtGui.QFont.Monospace)
-        self.setFont(serifFont)
+        QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
+        # self.setStyleSheet("background-color: rgb(255, 165, 0);")
+        self.setFont(QtGui.QFont("Montserrat", 10.5))
         self.tables = ['customers', 'order_items',
                        'orders', 'products']
         self._table_func_map = {
@@ -91,6 +93,13 @@ class DBApplication(QtWidgets.QWidget):
             self.submit_button = QtWidgets.QPushButton("Submit")
             self.submit_button.clicked.connect(self.querySelection)
             self.form_layout.addRow(self.submit_button)
+            self.sort_label = QtWidgets.QLabel("Sort by: ")
+            self.sort_options = QtWidgets.QComboBox()
+            self.sort_options.addItem("Customer ID")
+            self.sort_options.addItem("First Name")
+            self.sort_options.addItem("Last Name")
+            self.form_layout.addWidget(QtWidgets.QLabel("Additional Options"))
+            self.form_layout.addRow(self.sort_label, self.sort_options)
             self._customers_query_dict = {
                 'first_name':self.field_first_name,
                 'last_name':self.field_last_name,
@@ -107,7 +116,8 @@ class DBApplication(QtWidgets.QWidget):
             }
             self._products_query_dict = {
                 'product_name': self.field_product_name,
-                'list_price' : (self.min_list_price, self.max_list_price)
+                'list_price' : (self.min_list_price, self.max_list_price),
+                'model_year': self.field_model_year
             }
 
     def customer_form(self):
@@ -177,8 +187,7 @@ class DBApplication(QtWidgets.QWidget):
 
     def products_form(self):
         self.form_title_3 = QtWidgets.QLabel("Products Search Options")
-        self.show_product_label = QtWidgets.QLabel("Show Columns")
-        self.show_pbox = QtWidgets.QCheckBox()
+
         self.product_name_label = QtWidgets.QLabel("Product Name:")
         self.model_year_label = QtWidgets.QLabel("Model Year:")
         self.list_price_label = QtWidgets.QLabel("List Price:")
@@ -196,10 +205,10 @@ class DBApplication(QtWidgets.QWidget):
         self.min_list_price.setFixedWidth(40)
         self.max_list_price.setFixedWidth(40)
 
+
         for field in [self.field_product_name, self.field_model_year]:
             field.setFixedHeight(30)
         self.form_layout.addWidget(self.form_title_3)
-        self.form_layout.addRow(self.show_product_label, self.show_pbox)
         self.form_layout.addRow(self.product_name_label, self.field_product_name)
         self.form_layout.addRow(self.model_year_label, self.field_model_year)
         self.form_layout.addRow(self.list_price_label, self.list_price_max_min)
@@ -217,6 +226,7 @@ class DBApplication(QtWidgets.QWidget):
                 item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEditable)
                 self.db_table.setItem(row_num, col, item)
             row_num += 1
+            
         self.message_label.setText(f"{row_num} records found")
         self.sub_layout.addWidget(self.db_table, 0, 0)
         self.form_select(self.db_table)
@@ -247,7 +257,7 @@ class DBApplication(QtWidgets.QWidget):
                             where_component += " WHERE "
                         if key == 'order_status':
                             where_component += f"{form_name}.{key} = {value.text()}"
-                        elif key == 'required_date' or key == 'shipped_date':
+                        elif key == 'required_date' or key == 'shipped_date' or key == 'model_year':
                             where_component += f"{form_name}.{key} = '{value.text()}'"
                         elif key == 'first_name' or key == 'last_name' or key == "product_name" or key == 'state':
                             where_component += f"{form_name}.{key} LIKE '{value.text()}%'"
@@ -270,6 +280,8 @@ class DBApplication(QtWidgets.QWidget):
                         
 
     def querySelection(self):
+        self.save_button = QtWidgets.QPushButton("Save to Database")
+        self.form_layout.addRow(self.save_button)
         self.num = 0
         customers_form_entry = self.check_dict_contents(self._customers_query_dict, "CUSTOMERS")
         orders_form_entry = self.check_dict_contents(self._orders_query_dict, "ORDERS")
@@ -302,6 +314,7 @@ class DBApplication(QtWidgets.QWidget):
         query_text = f"SELECT {column_comp} FROM bikestore.CUSTOMERS "
         query_text = query_text + join_component + where_component
         self.query = query_text
+
         print(self.query)
         self.magic()
 
