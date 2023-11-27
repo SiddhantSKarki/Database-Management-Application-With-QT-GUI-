@@ -269,6 +269,12 @@ class DBApplication(QtWidgets.QWidget):
                         else:
                             where_component += " WHERE "
                         if key == 'quantity' or  key == 'discount' or key == 'list_price':
+                            if key == 'quantity':
+                                self.sort_options.addItem("Quantity")
+                            elif key == 'discount':
+                                self.sort_options.addItem("Discount")
+                            else:
+                                self.sort_options.addItem("List Price")
                             if value[0].text() != '' and value[1].text() != '':
                                 where_component += f"{form_name}.{key} BETWEEN {value[0].text()} AND {value[1].text()}" 
                             elif value[0].text() != '':
