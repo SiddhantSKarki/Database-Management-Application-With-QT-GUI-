@@ -92,14 +92,19 @@ class DBApplication(QtWidgets.QWidget):
             self._table_func_map["PRODUCTS"]()
             self.submit_button = QtWidgets.QPushButton("Submit")
             self.submit_button.clicked.connect(self.querySelection)
-            self.form_layout.addRow(self.submit_button)
             self.sort_label = QtWidgets.QLabel("Sort by: ")
             self.sort_options = QtWidgets.QComboBox()
-            self.sort_options.addItem("Customer ID")
-            self.sort_options.addItem("First Name")
-            self.sort_options.addItem("Last Name")
+            self.sort_options.addItem("customer_id")
+            self.sort_options.addItem("first_name")
+            self.sort_options.addItem("last_name")
             self.form_layout.addWidget(QtWidgets.QLabel("Additional Options"))
             self.form_layout.addRow(self.sort_label, self.sort_options)
+            self.order = QtWidgets.QComboBox()
+            self.order.addItem("ASC")
+            self.order.addItem("DESC")
+            self.form_layout.addRow(QtWidgets.QLabel("Order"), self.order)
+            self.form_layout.addRow(QtWidgets.QLabel(""))
+            self.form_layout.addWidget(self.submit_button)
             self._customers_query_dict = {
                 'first_name':self.field_first_name,
                 'last_name':self.field_last_name,
@@ -119,6 +124,8 @@ class DBApplication(QtWidgets.QWidget):
                 'list_price' : (self.min_list_price, self.max_list_price),
                 'model_year': self.field_model_year
             }
+            self.save_button = None
+            self.sort_option_list = []
 
     def customer_form(self):
         self.form_last_name = QtWidgets.QLabel("Last Name:")
@@ -166,7 +173,6 @@ class DBApplication(QtWidgets.QWidget):
 
         self.form_layout.addRow(self.quantity, self.quantity_max_min)
         self.form_layout.addRow(self.discount, self.discount_max_min)
-
 
     def orders_form(self):
         self.order_status_label = QtWidgets.QLabel("Order Status:")
@@ -232,6 +238,9 @@ class DBApplication(QtWidgets.QWidget):
         self.form_select(self.db_table)
         self.db.close()
 
+    def save_magic(self):
+        pass
+
     def check_dict_contents(self, form_dict, form_name):
         isEmpty = True
         cols = []
@@ -269,12 +278,9 @@ class DBApplication(QtWidgets.QWidget):
                         else:
                             where_component += " WHERE "
                         if key == 'quantity' or  key == 'discount' or key == 'list_price':
-                            if key == 'quantity':
-                                self.sort_options.addItem("Quantity")
-                            elif key == 'discount':
-                                self.sort_options.addItem("Discount")
-                            else:
-                                self.sort_options.addItem("List Price")
+                            if not(key in self.sort_option_list):
+                                self.sort_option_list.append(key)
+                                self.sort_options.addItem(key)
                             if value[0].text() != '' and value[1].text() != '':
                                 where_component += f"{form_name}.{key} BETWEEN {value[0].text()} AND {value[1].text()}" 
                             elif value[0].text() != '':
@@ -286,39 +292,45 @@ class DBApplication(QtWidgets.QWidget):
                         
 
     def querySelection(self):
-        self.save_button = QtWidgets.QPushButton("Save to Database")
+        if not self.save_button:
+            self.save_button = QtWidgets.QPushButton("Save to Database")
         self.form_layout.addRow(self.save_button)
+        self.save_button.clicked.connect(self.save_magic)
         self.num = 0
-        customers_form_entry = self.check_dict_contents(self._customers_query_dict, "CUSTOMERS")
-        orders_form_entry = self.check_dict_contents(self._orders_query_dict, "ORDERS")
+        
         join_component = ""
         where_component = ""
         column_comp = ", ".join([f"CUSTOMERS.{column}" for column in ['customer_id', 'first_name', 'last_name','phone','email','street','city','state','zipcode']])
 
-
+        customers_form_entry = self.check_dict_contents(self._customers_query_dict, "CUSTOMERS")
         where_component += self.where_mod(self._customers_query_dict, "CUSTOMERS")
+        orders_form_entry = self.check_dict_contents(self._orders_query_dict, "ORDERS")
         if not orders_form_entry[0]:
-            join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = ORDERS.customer_id "
+            join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = bikestore.ORDERS.customer_id "
             where_component += self.where_mod(self._orders_query_dict, "ORDERS")
             column_comp += "," + ', '.join(orders_form_entry[1])
 
         oitems_form_entry = self.check_dict_contents(self._oitems_query_dict, "ORDER_ITEMS")
         if not oitems_form_entry[0]:
             if orders_form_entry[0]:
-                join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = ORDERS.customer_id "
-            join_component += " INNER JOIN bikestore.ORDER_ITEMS ON ORDER_ITEMS.order_id = ORDERS.order_id "
+                join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = bikestore.ORDERS.customer_id "
+            join_component += " INNER JOIN bikestore.ORDER_ITEMS ON ORDER_ITEMS.order_id = bikestore.ORDERS.order_id "
             where_component += self.where_mod(self._oitems_query_dict, "ORDER_ITEMS")
             column_comp += "," + ', '.join(oitems_form_entry[1])
 
         products_form_entry = self.check_dict_contents(self._products_query_dict, "PRODUCTS")
         if not products_form_entry[0]:
             if oitems_form_entry[0]:
-                join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = ORDERS.customer_id " + " INNER JOIN bikestore.ORDER_ITEMS ON ORDER_ITEMS.order_id = ORDERS.order_id "
+                if orders_form_entry[0]:
+                    join_component += " INNER JOIN bikestore.ORDERS ON CUSTOMERS.customer_id = bikestore.ORDERS.customer_id " 
+                join_component += " INNER JOIN bikestore.ORDER_ITEMS ON ORDER_ITEMS.order_id = bikestore.ORDERS.order_id "
             join_component += " INNER JOIN bikestore.products ON bikestore.order_items.product_id = bikestore.products.product_id"
             where_component += self.where_mod(self._products_query_dict, "PRODUCTS")
             column_comp += "," + ', '.join(products_form_entry[1])
         query_text = f"SELECT {column_comp} FROM bikestore.CUSTOMERS "
-        query_text = query_text + join_component + where_component
+
+        order_by_comp = f" ORDER BY {self.sort_options.currentText()} {self.order.currentText()};"
+        query_text = query_text + join_component + where_component + order_by_comp
         self.query = query_text
 
         print(self.query)
