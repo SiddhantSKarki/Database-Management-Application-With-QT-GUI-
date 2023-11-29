@@ -6,12 +6,52 @@ import sys
 import os
 import json
 
+class SaveDialog(QtWidgets.QDialog):
+    def __init__(self, save_query):
+        super().__init__()
+        QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
+        self.setFont(QtGui.QFont("Montserrat", 12))
+        self.resize(800, 200)
+        self.main_layout = QtWidgets.QVBoxLayout()
+        self.form_layout = QtWidgets.QFormLayout()
+        self.button_layout = QtWidgets.QHBoxLayout()
+        self.title = QtWidgets.QLabel("Enter the table details")
+        self.main_layout.addWidget(self.title)
+        table_name_lb = QtWidgets.QLabel("Table Name: ")
+        make_temporary = QtWidgets.QLabel("Temporary: ")
+        table_name_field = QtWidgets.QLineEdit()
+        mk_temp = QtWidgets.QCheckBox()
+        self.form_layout.addRow(table_name_lb, table_name_field)
+        self.form_layout.addRow(make_temporary, mk_temp)
+        self.main_layout.addLayout(self.form_layout)
+
+        save_btn = QtWidgets.QPushButton("Save")
+        cancel_btn = QtWidgets.QPushButton("Cancel")
+        self.button_layout.addWidget(save_btn)
+        self.button_layout.addWidget(cancel_btn)
+        cancel_btn.clicked.connect(self.close_operation)
+        save_btn.clicked.connect(self.magic)
+
+        self.main_layout.addLayout(self.button_layout)
+
+        self.setLayout(self.main_layout)
+
+    def magic(self):
+        print("Save Button clicked!!")
+
+    def close_operation(self):
+        self.close()
+
+
+
+
+
+
 class DBApplication(QtWidgets.QWidget):
 
     def __init__(self):
         super().__init__()
         QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
-        # self.setStyleSheet("background-color: rgb(255, 165, 0);")
         self.setFont(QtGui.QFont("Montserrat", 10.5))
         self.tables = ['customers', 'order_items',
                        'orders', 'products']
@@ -239,7 +279,8 @@ class DBApplication(QtWidgets.QWidget):
         self.db.close()
 
     def save_magic(self):
-        pass
+        dialog = SaveDialog(self.query)
+        dialog.exec_()
 
     def check_dict_contents(self, form_dict, form_name):
         isEmpty = True
@@ -255,6 +296,7 @@ class DBApplication(QtWidgets.QWidget):
                     cols.append(f"{form_name}.{key}")
         return (isEmpty,cols)
     
+
     def where_mod(self, form_dict, form_name):
         where_component = ""
         for key, value in form_dict.items():
