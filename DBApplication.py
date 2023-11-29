@@ -7,8 +7,11 @@ import os
 import json
 
 class SaveDialog(QtWidgets.QDialog):
-    def __init__(self, save_query):
+    def __init__(self, save_query, app_db):
         super().__init__()
+        self.query = save_query
+        self.cursor = app_db.cursor()
+        self.table_name = ""
         QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
         self.setFont(QtGui.QFont("Montserrat", 12))
         self.resize(800, 200)
@@ -17,28 +20,34 @@ class SaveDialog(QtWidgets.QDialog):
         self.button_layout = QtWidgets.QHBoxLayout()
         self.title = QtWidgets.QLabel("Enter the table details")
         self.main_layout.addWidget(self.title)
-        table_name_lb = QtWidgets.QLabel("Table Name: ")
-        make_temporary = QtWidgets.QLabel("Temporary: ")
-        table_name_field = QtWidgets.QLineEdit()
-        mk_temp = QtWidgets.QCheckBox()
-        self.form_layout.addRow(table_name_lb, table_name_field)
-        self.form_layout.addRow(make_temporary, mk_temp)
+        self.table_name_lb = QtWidgets.QLabel("Table Name: ")
+        self.table_name_field = QtWidgets.QLineEdit()
+        self.form_layout.addRow(self.table_name_lb, self.table_name_field)
         self.main_layout.addLayout(self.form_layout)
 
         save_btn = QtWidgets.QPushButton("Save")
         cancel_btn = QtWidgets.QPushButton("Cancel")
-        self.button_layout.addWidget(save_btn)
-        self.button_layout.addWidget(cancel_btn)
         cancel_btn.clicked.connect(self.close_operation)
         save_btn.clicked.connect(self.magic)
+        self.button_layout.addWidget(save_btn)
+        self.button_layout.addWidget(cancel_btn)
 
         self.main_layout.addLayout(self.button_layout)
 
         self.setLayout(self.main_layout)
+    
 
     def magic(self):
-        print("Save Button clicked!!")
 
+        self.table_name = self.table_name_field.text()
+        new_query = f"CREATE TABLE {self.table_name} AS " + self.query 
+        try:
+            print(new_query)
+            self.cursor.execute(new_query)
+        except Exception as e:
+            print(e)
+        self.close_operation()
+        
     def close_operation(self):
         self.close()
 
@@ -71,15 +80,54 @@ class DBApplication(QtWidgets.QWidget):
         #add each component into a layout
     def content_manager(self):
         self.load_btn = QtWidgets.QPushButton("Load")
+        self.drop_btn = QtWidgets.QPushButton("Delete")
         self.select_label = QtWidgets.QLabel("Select Database")
-        self.dropdown = QtWidgets.QComboBox()
 
         self.load_btn.clicked.connect(self.querySelectionLoad)
+        self.drop_btn.clicked.connect(self.drop_table)
         self.read_database()
-        
-        # FOR dropdown
+        self.reset_dropdown()
+       
+    
+
+    def reset_dropdown(self):
+         # FOR dropdown
+        self.dropdown = QtWidgets.QComboBox()
         for table in self.tables:
             self.dropdown.addItem(table.upper())
+        self.created_tables = []
+        with open("./bin/tables.bin", mode='r') as file:
+            lines = file.readlines()
+            for line in lines:
+                line = line.strip('\n')
+                if line:
+                    if  line not in self.tables:
+                        self.created_tables.append(line)
+                        self.dropdown.addItem(line)
+
+    def drop_table(self):
+        curr = self.dropdown.currentText()
+        if curr not in self.tables:
+            self.created_tables.remove(curr)
+            with open("./bin/tables.bin", mode ='w') as file:
+                for line in self.created_tables:
+                    line = line + '\n'
+                    file.write(line)  
+            current_index = self.dropdown.currentIndex()
+            self.dropdown.removeItem(current_index)
+            # self.clear_table()
+            self.drop_query(curr)
+        else:
+            raise Exception("No Permission to Delete standard tables")
+        
+    def drop_query(self, table_name):
+        self.read_database()
+        temp_cur = self.db.cursor()
+        try:
+            temp_cur.execute(f"DROP TABLE {table_name};")
+        except Exception as e:
+            print(e.__cause__)
+        self.db.close()
         
     def read_database(self):
         config_dir = os.path.join("..", "config.json")
@@ -108,8 +156,9 @@ class DBApplication(QtWidgets.QWidget):
         self.dummy_layout.addWidget(self.select_label, 0 , 0, QtCore.Qt.AlignRight)
         self.dummy_layout.addWidget(self.dropdown, 0 , 1, QtCore.Qt.AlignCenter)
         self.dummy_layout.addWidget(self.load_btn, 0, 2, QtCore.Qt.AlignLeft)
+        self.dummy_layout.addWidget(self.drop_btn, 0, 3, QtCore.Qt.AlignLeft)
         self.dummy_layout.setColumnStretch(0, 2)
-        self.dummy_layout.setColumnStretch(2, 2)
+        self.dummy_layout.setColumnStretch(3, 2)
         self.main_layout.addLayout(self.sub_layout)
 
         self.sub_layout.setColumnStretch(0, 3)
@@ -279,8 +328,17 @@ class DBApplication(QtWidgets.QWidget):
         self.db.close()
 
     def save_magic(self):
-        dialog = SaveDialog(self.query)
+        newItem = ""
+        self.read_database()
+        dialog = SaveDialog(self.query, self.db)
         dialog.exec_()
+        newItem = dialog.table_name
+        if newItem != "":
+            self.dropdown.addItem(newItem)
+            self.created_tables.append(newItem)
+            with open("./bin/tables.bin", 'ab') as file:
+                file.write(newItem.encode() + b'\n')
+        self.db.close()
 
     def check_dict_contents(self, form_dict, form_name):
         isEmpty = True
@@ -289,11 +347,10 @@ class DBApplication(QtWidgets.QWidget):
             if isinstance(value, QtWidgets.QLineEdit):
                 if value.text() != '':
                     isEmpty = False
-                    cols.append(f"{form_name}.{key}")
             else:
                 if value[0].text() != '' or value[1].text() != '':
                     isEmpty = False
-                    cols.append(f"{form_name}.{key}")
+            cols.append(f"{form_name}.{key}")
         return (isEmpty,cols)
     
 
@@ -336,8 +393,8 @@ class DBApplication(QtWidgets.QWidget):
     def querySelection(self):
         if not self.save_button:
             self.save_button = QtWidgets.QPushButton("Save to Database")
+            self.save_button.clicked.connect(self.save_magic)
         self.form_layout.addRow(self.save_button)
-        self.save_button.clicked.connect(self.save_magic)
         self.num = 0
         
         join_component = ""
