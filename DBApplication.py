@@ -38,7 +38,6 @@ class SaveDialog(QtWidgets.QDialog):
     
 
     def magic(self):
-
         self.table_name = self.table_name_field.text()
         new_query = f"CREATE TABLE {self.table_name} AS " + self.query 
         try:
@@ -62,8 +61,7 @@ class DBApplication(QtWidgets.QWidget):
         super().__init__()
         QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
         self.setFont(QtGui.QFont("Montserrat", 10.5))
-        self.tables = ['customers', 'order_items',
-                       'orders', 'products']
+        self.tables = ['customers']
         self._table_func_map = {
             "CUSTOMERS" : self.customer_form,
             "ORDER_ITEMS": self.order_items_form,
