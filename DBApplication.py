@@ -1,6 +1,6 @@
-from PySide2 import QtGui, QtCore, QtWidgets
-from PySide2.QtGui import QFontDatabase
-import PySide2.QtWidgets
+from PySide6 import QtGui, QtCore, QtWidgets
+from PySide6.QtGui import QFontDatabase
+import PySide6.QtWidgets
 import mysql.connector
 import sys
 import os
@@ -442,7 +442,7 @@ class DBApplication(QtWidgets.QWidget):
         newItem = ""
         self.read_database()
         dialog = SaveDialog(self.query, self.db)
-        dialog.exec_()
+        dialog.exec()
         newItem = dialog.table_name
         if newItem != "":
             self.dropdown.addItem(newItem)
@@ -609,6 +609,6 @@ if __name__== '__main__':
     application = QtWidgets.QApplication(sys.argv)
 
     widget = DBApplication()
-    widget.resize(1600, 800)
+    widget.resize(1300, 700)
     widget.show()
-    sys.exit(application.exec_())
+    sys.exit(application.exec())
