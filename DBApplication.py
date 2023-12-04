@@ -6,8 +6,16 @@ import sys
 import os
 import json
 
+
 class SaveDialog(QtWidgets.QDialog):
     def __init__(self, save_query, app_db):
+        """
+        A custom QDialog for entering table details.
+
+        Parameters:
+            save_query (str): The save query to be executed.
+            app_db (DatabaseConnection): An instance of the database connection.
+        """
         super().__init__()
         self.query = save_query
         self.cursor = app_db.cursor()
@@ -38,6 +46,16 @@ class SaveDialog(QtWidgets.QDialog):
     
 
     def magic(self):
+        """
+        Execute the magic operation to create a new table based on the provided save query.
+
+        This method retrieves the table name from the input field, constructs a CREATE TABLE
+        query, and executes it. If an exception occurs during execution, it prints the exception
+        message. Finally, it closes the dialog.
+
+        Returns:
+            None
+        """
         self.table_name = self.table_name_field.text()
         new_query = f"CREATE TABLE {self.table_name} AS " + self.query 
         try:
@@ -50,14 +68,24 @@ class SaveDialog(QtWidgets.QDialog):
     def close_operation(self):
         self.close()
 
-
-
-
-
-
 class DBApplication(QtWidgets.QWidget):
 
     def __init__(self):
+        """
+        Constructor method for initializing the main application window.
+
+        This method sets up the main application window with the Montserrat font,
+        initializes a list of tables, and creates a mapping between table names and
+        their respective form functions. It then calls methods for managing content,
+        layout, and assembling components.
+
+        Parameters:
+            None
+
+        Attributes:
+            tables (list): A list of table names.
+            _table_func_map (dict): A mapping between table names
+        """
         super().__init__()
         QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
         self.setFont(QtGui.QFont("Montserrat", 10.5))
@@ -77,6 +105,15 @@ class DBApplication(QtWidgets.QWidget):
 
         #add each component into a layout
     def content_manager(self):
+        """
+        Method for managing the content of the main application window.
+
+        This method creates and configures UI components for loading, deleting, and selecting databases.
+        It connects the load and delete buttons to their respective functions and calls methods for
+        reading the database and resetting the dropdown.
+
+        Parameters: None
+        """
         self.load_btn = QtWidgets.QPushButton("Load")
         self.drop_btn = QtWidgets.QPushButton("Delete")
         self.select_label = QtWidgets.QLabel("Select Database")
@@ -89,6 +126,16 @@ class DBApplication(QtWidgets.QWidget):
     
 
     def reset_dropdown(self):
+        """
+        Method for resetting the dropdown menu with table names.
+
+        This method creates a QComboBox for displaying table names and initializes it with
+        existing tables and dynamically created tables. It reads the existing tables from a file
+        and adds them to the dropdown. It also checks for dynamically created tables and adds them.
+
+        Parameters:
+            None
+        """
          # FOR dropdown
         self.dropdown = QtWidgets.QComboBox()
         for table in self.tables:
@@ -104,6 +151,23 @@ class DBApplication(QtWidgets.QWidget):
                         self.dropdown.addItem(line)
 
     def drop_table(self):
+        """
+        Method for dropping a selected table.
+
+        This method retrieves the current selection from the dropdown, checks if it's a dynamically
+        created table, removes it from the list of created tables, updates the file containing table names,
+        removes the table from the dropdown, and executes the drop query. If the selected table is a standard
+        table, it raises an exception indicating no permission to delete standard tables.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            Exception: Raised when attempting to delete standard tables.
+        """
         curr = self.dropdown.currentText()
         if curr not in self.tables:
             self.created_tables.remove(curr)
@@ -119,6 +183,15 @@ class DBApplication(QtWidgets.QWidget):
             raise Exception("No Permission to Delete standard tables")
         
     def drop_query(self, table_name):
+        """
+        Executes a query to drop the specified table.
+
+        Parameters:
+            table_name (str): The name of the table to be dropped.
+
+        Returns:
+            None
+        """
         self.read_database()
         temp_cur = self.db.cursor()
         try:
@@ -128,6 +201,15 @@ class DBApplication(QtWidgets.QWidget):
         self.db.close()
         
     def read_database(self):
+        """
+        Reads database configuration from a JSON file and establishes a MySQL connection.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         config_dir = os.path.join("..", "config.json")
         with open(config_dir, mode='+r',newline='\n') as file:
             json_file = json.load(file)
@@ -144,12 +226,30 @@ class DBApplication(QtWidgets.QWidget):
         self.cur = self.db.cursor()
 
     def layout_manager(self):
+        """
+    Manages the layout of the main application window.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
         self.main_layout = QtWidgets.QVBoxLayout(self)
         self.sub_layout = QtWidgets.QGridLayout()
         self.dummy_layout = QtWidgets.QGridLayout()
         self.form_layout = None
     
     def comp_assembler(self):
+        """
+        Assembles and adds UI components to the main application window layout.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         self.main_layout.addLayout(self.dummy_layout)
         self.dummy_layout.addWidget(self.select_label, 0 , 0, QtCore.Qt.AlignRight)
         self.dummy_layout.addWidget(self.dropdown, 0 , 1, QtCore.Qt.AlignCenter)
@@ -165,7 +265,7 @@ class DBApplication(QtWidgets.QWidget):
         self.main_layout.addWidget(self.message_label, alignment=QtCore.Qt.AlignBottom)
 
 
-    def form_select(self, table): #TODO: Remove the table parameter if not necessary
+    def form_select(self, table):
         if not self.form_layout:
             self.form_layout = QtWidgets.QFormLayout()
             self.sub_layout.addLayout(self.form_layout, 0, 1)
@@ -186,12 +286,17 @@ class DBApplication(QtWidgets.QWidget):
             self.sort_options.addItem("last_name")
             self.form_layout.addWidget(QtWidgets.QLabel("Additional Options"))
             self.form_layout.addRow(self.sort_label, self.sort_options)
+            self.clear_btn = QtWidgets.QPushButton("Clear")
+            self.clear_btn.clicked.connect(self.clear)
             self.order = QtWidgets.QComboBox()
             self.order.addItem("ASC")
             self.order.addItem("DESC")
             self.form_layout.addRow(QtWidgets.QLabel("Order"), self.order)
             self.form_layout.addRow(QtWidgets.QLabel(""))
-            self.form_layout.addWidget(self.submit_button)
+            self.horizontal = QtWidgets.QHBoxLayout()
+            self.horizontal.addWidget(self.submit_button)
+            self.horizontal.addWidget(self.clear_btn)
+            self.form_layout.addRow(self.clear_btn, self.submit_button)
             self._customers_query_dict = {
                 'first_name':self.field_first_name,
                 'last_name':self.field_last_name,
@@ -307,23 +412,31 @@ class DBApplication(QtWidgets.QWidget):
         self.form_layout.addRow(self.list_price_label, self.list_price_max_min)
  
     def magic(self):
-        self.setup_data()
-        row_num = 0
-        self.column_headers = [column[0] for column in self.cur.description]
-        self.db_table.setColumnCount(len(self.column_headers))
-        self.db_table.setHorizontalHeaderLabels(self.column_headers)
-        for row in self.cur:
-            self.db_table.insertRow(row_num)
-            for col, col_data in enumerate(row):
-                item = QtWidgets.QTableWidgetItem(str(col_data))
-                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEditable)
-                self.db_table.setItem(row_num, col, item)
-            row_num += 1
-            
-        self.message_label.setText(f"{row_num} records found")
-        self.sub_layout.addWidget(self.db_table, 0, 0)
-        self.form_select(self.db_table)
-        self.db.close()
+        try:
+            self.setup_data()
+            row_num = 0
+            self.column_headers = [column[0] for column in self.cur.description]
+            self.db_table.setColumnCount(len(self.column_headers))
+            self.db_table.setHorizontalHeaderLabels(self.column_headers)
+            for row in self.cur:
+                self.db_table.insertRow(row_num)
+                for col, col_data in enumerate(row):
+                    item = QtWidgets.QTableWidgetItem(str(col_data))
+                    item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEditable)
+                    self.db_table.setItem(row_num, col, item)
+                row_num += 1
+                
+            self.message_label.setText(f"{row_num} records found")
+            self.sub_layout.addWidget(self.db_table, 0, 0)
+            self.form_select(self.db_table)
+            self.db.close()
+        except Exception as e:
+            msgBox = QtWidgets.QMessageBox();
+            msgBox.setText("Error: " + str(e.__cause__));
+            msgBox.setWindowTitle("Error")
+            msgBox.exec();
+
+
 
     def save_magic(self):
         newItem = ""
@@ -353,6 +466,28 @@ class DBApplication(QtWidgets.QWidget):
     
 
     def where_mod(self, form_dict, form_name):
+        """
+        Constructs a WHERE clause component for a SQL query based on the provided form data.
+
+        Parameters:
+            form_dict (dict): A dictionary containing form field names as keys and their corresponding
+                            QtWidgets.QLineEdit or tuple of QLineEdits as values.
+            form_name (str): The name of the form or table to be used in the WHERE clause.
+
+        Returns:
+            str: A string representing the WHERE clause component for the SQL query.
+
+        Notes:
+            The method iterates through the form fields in the given dictionary and checks whether
+            the field values are provided. For single-line edit fields, it adds conditions to the WHERE
+            clause based on the data type of the field. For range-based fields (e.g., quantity, discount),
+            it checks for provided minimum and maximum values to construct a range condition.
+
+            Numeric fields (e.g., quantity, discount, list_price) are considered for sorting options
+            and added to the sort_options QComboBox if not already present.
+
+            The constructed WHERE clause component is returned as a string.
+        """
         where_component = ""
         for key, value in form_dict.items():
                 if isinstance(value, QtWidgets.QLineEdit):
@@ -389,6 +524,20 @@ class DBApplication(QtWidgets.QWidget):
                         
 
     def querySelection(self):
+        """
+        Generates and executes a SQL query based on user input in various form fields.
+
+        This method constructs a SELECT query for retrieving data from the database tables (CUSTOMERS, ORDERS, ORDER_ITEMS, PRODUCTS)
+        based on the user's input in form fields. It builds the JOIN and WHERE clauses dynamically and includes sorting options.
+  
+        If the "Save to Database" button is clicked, it connects to the `save_magic` method to save the query results.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         if not self.save_button:
             self.save_button = QtWidgets.QPushButton("Save to Database")
             self.save_button.clicked.connect(self.save_magic)
@@ -439,11 +588,8 @@ class DBApplication(QtWidgets.QWidget):
 
     def setup_data(self):
         self.db_table = QtWidgets.QTableWidget()
-        try:
-            self.read_database()
-            self.cur.execute(self.query)
-        except Exception as e:
-            print(e.__cause__)
+        self.read_database()
+        self.cur.execute(self.query)
 
     def clear_layout(self, layout: QtWidgets.QLayout):
         while layout.count():
@@ -453,6 +599,11 @@ class DBApplication(QtWidgets.QWidget):
             widget = item.widget()
             if widget:
                 widget.deleteLater()
+    def clear(self):
+        self.clear_layout(self.form_layout)
+        self.sub_layout.removeItem(self.form_layout)
+        self.form_layout = None
+        self.form_select(self.db_table)
 
 if __name__== '__main__':
     application = QtWidgets.QApplication(sys.argv)
