@@ -20,7 +20,7 @@ class SaveDialog(QtWidgets.QDialog):
         self.query = save_query
         self.cursor = app_db.cursor()
         self.table_name = ""
-        QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
+        QFontDatabase.addApplicationFont("./fonts/montserrat/static/Montserrat-Regular.ttf")
         self.setFont(QtGui.QFont("Montserrat", 12))
         self.resize(800, 200)
         self.main_layout = QtWidgets.QVBoxLayout()
