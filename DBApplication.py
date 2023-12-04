@@ -210,7 +210,7 @@ class DBApplication(QtWidgets.QWidget):
         Returns:
             None
         """
-        config_dir = os.path.join("..", "config.json")
+        config_dir = os.path.join(".", "config.json")
         with open(config_dir, mode='+r',newline='\n') as file:
             json_file = json.load(file)
         user = json_file['mysql']['user']
