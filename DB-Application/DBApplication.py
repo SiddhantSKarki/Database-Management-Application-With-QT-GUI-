@@ -618,3 +618,4 @@ if __name__== '__main__':
     widget.setWindowIcon(QtGui.QIcon("./window_icon.png"))
     widget.show()
     sys.exit(application.exec())
+    
