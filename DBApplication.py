@@ -20,7 +20,7 @@ class SaveDialog(QtWidgets.QDialog):
         self.query = save_query
         self.cursor = app_db.cursor()
         self.table_name = ""
-        QFontDatabase.addApplicationFont("./fonts/montserrat/static/Montserrat-Regular.ttf")
+        QFontDatabase.addApplicationFont("./fonts/montserrat/static/Montserrat-Thin.ttf")
         self.setFont(QtGui.QFont("Montserrat", 12))
         self.resize(800, 200)
         self.main_layout = QtWidgets.QVBoxLayout()
@@ -59,7 +59,7 @@ class SaveDialog(QtWidgets.QDialog):
         self.table_name = self.table_name_field.text()
         new_query = f"CREATE TABLE {self.table_name} AS " + self.query 
         try:
-            print(new_query)
+            # print(new_query)
             self.cursor.execute(new_query)
         except Exception as e:
             print(e)
@@ -87,9 +87,9 @@ class DBApplication(QtWidgets.QWidget):
             _table_func_map (dict): A mapping between table names
         """
         super().__init__()
-        QFontDatabase.addApplicationFont("./montserrat/static/Montserrat-Regular.ttf")
+        QFontDatabase.addApplicationFont("./fonts/montserrat/static/Montserrat-Regular.ttf")
         self.setFont(QtGui.QFont("Montserrat", 10.5))
-        self.tables = ['customers']
+        self.tables = ['CUSTOMERS']
         self._table_func_map = {
             "CUSTOMERS" : self.customer_form,
             "ORDER_ITEMS": self.order_items_form,
@@ -170,6 +170,7 @@ class DBApplication(QtWidgets.QWidget):
         """
         curr = self.dropdown.currentText()
         if curr not in self.tables:
+            # print(curr)
             self.created_tables.remove(curr)
             with open("./bin/tables.bin", mode ='w') as file:
                 for line in self.created_tables:
@@ -180,7 +181,10 @@ class DBApplication(QtWidgets.QWidget):
             # self.clear_table()
             self.drop_query(curr)
         else:
-            raise Exception("No Permission to Delete standard tables")
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setWindowTitle("Permission Denied")
+            msg_box.setText(f"Permission Denied to delete main table {curr}")
+            msg_box.exec()
         
     def drop_query(self, table_name):
         """
@@ -579,7 +583,7 @@ class DBApplication(QtWidgets.QWidget):
         query_text = query_text + join_component + where_component + order_by_comp
         self.query = query_text
 
-        print(self.query)
+        # print(self.query)
         self.magic()
 
     def querySelectionLoad(self):

@@ -1,0 +1,4 @@
+Please follow the following steps to set up your python environment with necessary packages:
+
+1. Run the command 'pip install -r requirements.txt' in your terminal. This makes sure you have all the necessary packages
+   installed to run the Database Application.
