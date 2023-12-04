@@ -614,5 +614,7 @@ if __name__== '__main__':
 
     widget = DBApplication()
     widget.resize(1300, 700)
+    widget.setWindowTitle("Customers-DBA")
+    widget.setWindowIcon(QtGui.QIcon("./window_icon.png"))
     widget.show()
     sys.exit(application.exec())
