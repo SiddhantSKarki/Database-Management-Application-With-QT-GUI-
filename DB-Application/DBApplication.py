@@ -59,11 +59,19 @@ class SaveDialog(QtWidgets.QDialog):
         self.table_name = self.table_name_field.text()
         new_query = f"CREATE TABLE {self.table_name} AS " + self.query 
         try:
-            # print(new_query)
+            print(new_query)
+            if (self.table_name == " " ) or ' ' in self.table_name or '-' in self.table_name or '_' in self.table_name:
+                print(self.table_name)
+                raise Exception("Invalid Table Name:")
             self.cursor.execute(new_query)
+            self.close_operation()
         except Exception as e:
             print(e)
-        self.close_operation()
+            error = QtWidgets.QMessageBox()
+            error.setWindowTitle("Error")
+            error.setText("INVALID TABLE NAME: CANNOT CONTAIN *,-,_,/,+, Spaces")
+            error.exec()
+            raise Exception("Error in the Table Name")
         
     def close_operation(self):
         self.close()
@@ -446,13 +454,16 @@ class DBApplication(QtWidgets.QWidget):
         newItem = ""
         self.read_database()
         dialog = SaveDialog(self.query, self.db)
-        dialog.exec()
-        newItem = dialog.table_name
-        if newItem != "":
-            self.dropdown.addItem(newItem)
-            self.created_tables.append(newItem)
-            with open("./bin/tables.bin", 'ab') as file:
-                file.write(newItem.encode() + b'\n')
+        try:
+            dialog.exec()
+            newItem = dialog.table_name
+            if newItem != "":
+                self.dropdown.addItem(newItem)
+                self.created_tables.append(newItem)
+                with open("./bin/tables.bin", 'ab') as file:
+                    file.write(newItem.encode() + b'\n')
+        except Exception as e:
+            pass
         self.db.close()
 
     def check_dict_contents(self, form_dict, form_name):
@@ -587,7 +598,7 @@ class DBApplication(QtWidgets.QWidget):
         self.magic()
 
     def querySelectionLoad(self):
-        self.query = f"SELECT * FROM bikestore.{self.dropdown.currentText()}"
+        self.query = f"SELECT * FROM {self.dropdown.currentText()}"
         self.magic()
 
     def setup_data(self):
@@ -618,4 +629,3 @@ if __name__== '__main__':
     widget.setWindowIcon(QtGui.QIcon("./window_icon.png"))
     widget.show()
     sys.exit(application.exec())
-    
